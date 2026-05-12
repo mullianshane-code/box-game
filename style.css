@@ -1,6 +1,6 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
 body, html {
-    margin: 0;
-    padding: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
@@ -11,7 +11,7 @@ canvas {
     width: 100vw;
     height: 100vh;
     display: block;
-    image-rendering: pixelated; /* Keeps that crisp retro look */
+    image-rendering: pixelated;
 }
 
 #ui {
@@ -19,10 +19,11 @@ canvas {
     top: 20px;
     left: 20px;
     color: #0f0;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 12px;
     border: 1px solid #0f0;
-    font-family: monospace;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
     pointer-events: none;
     z-index: 100;
 }
@@ -31,11 +32,12 @@ canvas {
     position: fixed;
     top: 50%;
     left: 50%;
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
     background: white;
     transform: translate(-50%, -50%);
     mix-blend-mode: difference;
     pointer-events: none;
     z-index: 100;
+    border-radius: 50%;
 }

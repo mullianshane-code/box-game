@@ -28,13 +28,17 @@ export class Renderer {
     get fsSource() {
         return `
             precision highp float;
-            uniform vec2 u_res; uniform vec3 u_cam, u_off, u_target;
-            uniform vec2 u_rot; uniform sampler2D u_world, u_atlas;
+            uniform vec2 u_res; 
+            uniform vec3 u_cam, u_off, u_target;
+            uniform vec2 u_rot; 
+            uniform sampler2D u_world, u_atlas;
+
             const vec3 SUN_DIR = normalize(vec3(0.4, 0.8, -0.4));
 
             bool isSolid(vec3 p) {
                 vec3 lp = floor(p) - u_off;
                 if(lp.x<0.||lp.x>=63.||lp.y<0.||lp.y>=63.||lp.z<0.||lp.z>=63.) return lp.y < 0.0;
+                // WebGL 1.0 3D-to-2D texture mapping
                 vec2 uv = (vec2(mod(lp.z, 8.0)*64.0 + lp.x, floor(lp.z/8.0)*64.0 + lp.y) + 0.5) / 512.0;
                 return texture2D(u_world, uv).r > 0.5;
             }
@@ -45,8 +49,9 @@ export class Renderer {
             }
 
             void main() {
-                // THE ASPECT FIX: Divide by res.y for both axes
+                // FIXED ASPECT RATIO MATH
                 vec2 uv = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
+                
                 float cx=cos(u_rot.x), sx=sin(u_rot.x), cy=cos(u_rot.y), sy=sin(u_rot.y);
                 
                 vec3 rd = normalize(vec3(uv, -1.0)); 
@@ -66,18 +71,22 @@ export class Renderer {
                 if(hit) {
                     vec3 nor = mask * -s, hitPos = p + rd * dist;
                     vec2 fP = (mask.x > 0.5) ? fract(hitPos.zy) : (mask.y > 0.5 ? fract(hitPos.xz) : fract(hitPos.xy));
+                    
+                    // Texture mapping for Grass (Top), Dirt (Sides), Stone (Bottom)
                     vec2 aUV = (nor.y > 0.5) ? fP * 0.5 : (nor.y < -0.5 ? fP * 0.5 + vec2(0.5,0) : vec2(fP.x*0.5, (1.0-fP.y)*0.5 + 0.5));
                     
+                    // Ambient Occlusion Calc
                     vec3 t1 = (mask.y > 0.5) ? vec3(1,0,0) : (mask.x > 0.5 ? vec3(0,0,1) : vec3(1,0,0));
                     vec3 t2 = (mask.y > 0.5) ? vec3(0,0,1) : (mask.x > 0.5 ? vec3(0,1,0) : vec3(0,1,0));
                     float ao = pow(mix(mix(vertexAO(m+nor,-t1,-t2), vertexAO(m+nor,t1,-t2), fP.x), mix(vertexAO(m+nor,-t1,t2), vertexAO(m+nor,t1,t2), fP.x), fP.y), 0.7);
                     
+                    // Shadow Calc
                     float shd = 1.0; vec3 roS = hitPos + nor*0.01;
                     vec3 mS=floor(roS), dS=abs(1.0/SUN_DIR), sS=sign(SUN_DIR), sideS=(sS*(mS-roS)+sS*0.5+0.5)*dS;
                     for(int i=0; i<25; i++) { if(isSolid(mS)) { shd=0.4; break; } if(sideS.x<sideS.y && sideS.x<sideS.z) sideS.x+=dS.x, mS.x+=sS.x; else if(sideS.y<sideS.z) sideS.y+=dS.y, mS.y+=sS.y; else sideS.z+=dS.z, mS.z+=sS.z; }
                     
                     vec3 tex = texture2D(u_atlas, aUV).rgb;
-                    if(floor(m) == floor(u_target)) tex += 0.15;
+                    if(floor(m) == floor(u_target)) tex += 0.15; // Highlight targeted block
                     gl_FragColor = vec4(tex * (max(dot(nor, SUN_DIR), 0.0)*shd + 0.3) * ao, 1.0);
                 } else {
                     gl_FragColor = vec4(mix(vec3(0.5,0.7,1), vec3(0.1,0.4,0.9), rd.y), 1.0);
@@ -85,8 +94,6 @@ export class Renderer {
             }
         `;
     }
-
-    // --- ENGINE LOGIC ---
 
     initProgram() {
         const gl = this.gl;

@@ -38,11 +38,11 @@ export class Player {
         });
     }
 
-    update(world) {
+update(world) {
         let dx = 0;
         let dz = 0;
 
-        // Movement Direction
+        // 1. Calculate direction
         if (this.keys['KeyW'] || this.keys['ArrowUp']) {
             dx -= Math.sin(this.rot.y);
             dz -= Math.cos(this.rot.y);
@@ -60,23 +60,37 @@ export class Player {
             dz -= Math.sin(this.rot.y);
         }
 
-        // Horizontal Collision
-        const nextX = this.pos.x + dx * this.speed;
-        const nextZ = this.pos.z + dz * this.speed;
-
-        if (!world.isSolid(nextX + (dx > 0 ? this.radius : -this.radius), this.pos.y - 1.5, this.pos.z)) {
-            this.pos.x = nextX;
-        }
-        if (!world.isSolid(this.pos.x, this.pos.y - 1.5, nextZ + (dz > 0 ? this.radius : -this.radius))) {
-            this.pos.z = nextZ;
+        // Normalize movement so diagonal isn't faster
+        const mag = Math.sqrt(dx * dx + dz * dz);
+        if (mag > 0) {
+            dx = (dx / mag) * this.speed;
+            dz = (dz / mag) * this.speed;
         }
 
-        // Vertical Physics
+        // 2. Horizontal Collision with "Buffer"
+        // We check at "waist height" (pos.y - 1.0) to avoid ground-snagging
+        const margin = 0.05; // Extra gap to prevent sticking
+        const checkY = this.pos.y - 1.0; 
+
+        if (!world.isSolid(this.pos.x + dx + (dx > 0 ? this.radius : -this.radius), checkY, this.pos.z)) {
+            this.pos.x += dx;
+        }
+        if (!world.isSolid(this.pos.x, checkY, this.pos.z + dz + (dz > 0 ? this.radius : -this.radius))) {
+            this.pos.z += dz;
+        }
+
+        // 3. Vertical Physics
         this.vel.y -= this.gravity;
-        const isGrounded = world.isSolid(this.pos.x, this.pos.y - 1.6, this.pos.z);
+        
+        // Ground check uses a slightly deeper offset to ensure "stickiness" while walking
+        const isGrounded = world.isSolid(this.pos.x, this.pos.y - 1.55, this.pos.z);
 
         if (isGrounded) {
-            if (this.vel.y < 0) this.vel.y = 0;
+            if (this.vel.y < 0) {
+                this.vel.y = 0;
+                // Snap player to the surface of the block so they don't sink
+                this.pos.y = Math.floor(this.pos.y - 1.5) + 1.51;
+            }
             if (this.keys['Space']) {
                 this.vel.y = this.jumpForce;
             }
@@ -84,4 +98,3 @@ export class Player {
 
         this.pos.y += this.vel.y;
     }
-}
